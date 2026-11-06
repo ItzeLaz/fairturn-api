@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "algoritmo": "Ver specs/004-pagos-y-bitacora/spec.md, seccion 'Encadenamiento exacto'",
+  "hashInicial": "0000000000000000000000000000000000000000000000000000000000000000",
+  "casos": [
+    {
+      "nombre": "cadena integra",
+      "cadena": [
+        {
+          "secuencia": 1,
+          "tipo": "TANDA_CREADA",
+          "contenido": "{\"idTanda\":\"7f3c2a10-5b1e-4c8d-9a2f-0e6b4d8c1a01\",\"monto\":\"500.00\",\"periodicidad\":\"SEMANAL\",\"numeroParticipantes\":4}",
+          "marcaDeTiempo": "2026-11-06T22:15:30.123Z",
+          "hashPrevio": "0000000000000000000000000000000000000000000000000000000000000000",
+          "hash": "70794e347581d0a8e15c3421250d50c14c8eae9d7019d9b268642f2412fcef9e"
+        },
+        {
+          "secuencia": 2,
+          "tipo": "MIEMBRO_UNIDO",
+          "contenido": "{\"idParticipante\":\"a1000000-0000-4000-8000-000000000002\"}",
+          "marcaDeTiempo": "2026-11-06T22:16:02.004Z",
+          "hashPrevio": "70794e347581d0a8e15c3421250d50c14c8eae9d7019d9b268642f2412fcef9e",
+          "hash": "7585d6a4dc81f2702a15e07fd3f26c6a7f2d0489fb36c5960779ce9a9500ee9d"
+        },
+        {
+          "secuencia": 3,
+          "tipo": "PAGO_DECLARADO",
+          "contenido": "{\"idPago\":\"e5000000-0000-4000-8000-000000000001\",\"referencia\":\"Depósito | 09:15 · Ana\"}",
+          "marcaDeTiempo": "2026-11-13T15:15:00.000Z",
+          "hashPrevio": "7585d6a4dc81f2702a15e07fd3f26c6a7f2d0489fb36c5960779ce9a9500ee9d",
+          "hash": "2f36880333ca2f67dde4499cd7ce9768da078e38f94d9dc9f24194a341a61b0f"
+        },
+        {
+          "secuencia": 4,
+          "tipo": "PAGO_CONFIRMADO",
+          "contenido": "{\"idPago\":\"e5000000-0000-4000-8000-000000000001\"}",
+          "marcaDeTiempo": "2026-11-13T18:40:12.500Z",
+          "hashPrevio": "2f36880333ca2f67dde4499cd7ce9768da078e38f94d9dc9f24194a341a61b0f",
+          "hash": "32159c80fc6f1d3fd802e66fafe5b06b26179d6cc3b40437137e474233407d85"
+        }
+      ],
+      "esperado": {
+        "integra": true,
+        "primeraAlterada": null
+      }
+    },
+    {
+      "nombre": "contenido alterado en la entrada 1",
+      "cadena": [
+        {
+          "secuencia": 1,
+          "tipo": "TANDA_CREADA",
+          "contenido": "{\"idTanda\":\"7f3c2a10-5b1e-4c8d-9a2f-0e6b4d8c1a01\",\"monto\":\"50.00\",\"periodicidad\":\"SEMANAL\",\"numeroParticipantes\":4}",
+          "marcaDeTiempo": "2026-11-06T22:15:30.123Z",
+          "hashPrevio": "0000000000000000000000000000000000000000000000000000000000000000",
+          "hash": "70794e347581d0a8e15c3421250d50c14c8eae9d7019d9b268642f2412fcef9e"
+        },
+        {
+          "secuencia": 2,
+          "tipo": "MIEMBRO_UNIDO",
+          "contenido": "{\"idParticipante\":\"a1000000-0000-4000-8000-000000000002\"}",
+          "marcaDeTiempo": "2026-11-06T22:16:02.004Z",
+          "hashPrevio": "70794e347581d0a8e15c3421250d50c14c8eae9d7019d9b268642f2412fcef9e",
+          "hash": "7585d6a4dc81f2702a15e07fd3f26c6a7f2d0489fb36c5960779ce9a9500ee9d"
+        },
+        {
+          "secuencia": 3,
+          "tipo": "PAGO_DECLARADO",
+          "contenido": "{\"idPago\":\"e5000000-0000-4000-8000-000000000001\",\"referencia\":\"Depósito | 09:15 · Ana\"}",
+          "marcaDeTiempo": "2026-11-13T15:15:00.000Z",
+          "hashPrevio": "7585d6a4dc81f2702a15e07fd3f26c6a7f2d0489fb36c5960779ce9a9500ee9d",
+          "hash": "2f36880333ca2f67dde4499cd7ce9768da078e38f94d9dc9f24194a341a61b0f"
+        },
+        {
+          "secuencia": 4,
+          "tipo": "PAGO_CONFIRMADO",
+          "contenido": "{\"idPago\":\"e5000000-0000-4000-8000-000000000001\"}",
+          "marcaDeTiempo": "2026-11-13T18:40:12.500Z",
+          "hashPrevio": "2f36880333ca2f67dde4499cd7ce9768da078e38f94d9dc9f24194a341a61b0f",
+          "hash": "32159c80fc6f1d3fd802e66fafe5b06b26179d6cc3b40437137e474233407d85"
+        }
+      ],
+      "esperado": {
+        "integra": false,
+        "primeraAlterada": 1
+      }
+    },
+    {
+      "nombre": "entrada 3 alterada con su hash recalculado",
+      "cadena": [
+        {
+          "secuencia": 1,
+          "tipo": "TANDA_CREADA",
+          "contenido": "{\"idTanda\":\"7f3c2a10-5b1e-4c8d-9a2f-0e6b4d8c1a01\",\"monto\":\"500.00\",\"periodicidad\":\"SEMANAL\",\"numeroParticipantes\":4}",
+          "marcaDeTiempo": "2026-11-06T22:15:30.123Z",
+          "hashPrevio": "0000000000000000000000000000000000000000000000000000000000000000",
+          "hash": "70794e347581d0a8e15c3421250d50c14c8eae9d7019d9b268642f2412fcef9e"
+        },
+        {
+          "secuencia": 2,
+          "tipo": "MIEMBRO_UNIDO",
+          "contenido": "{\"idParticipante\":\"a1000000-0000-4000-8000-000000000002\"}",
+          "marcaDeTiempo": "2026-11-06T22:16:02.004Z",
+          "hashPrevio": "70794e347581d0a8e15c3421250d50c14c8eae9d7019d9b268642f2412fcef9e",
+          "hash": "7585d6a4dc81f2702a15e07fd3f26c6a7f2d0489fb36c5960779ce9a9500ee9d"
+        },
+        {
+          "secuencia": 3,
+          "tipo": "PAGO_DECLARADO",
+          "contenido": "{\"idPago\":\"e5000000-0000-4000-8000-000000000001\",\"referencia\":\"Depósito | 09:15 · Luis\"}",
+          "marcaDeTiempo": "2026-11-13T15:15:00.000Z",
+          "hashPrevio": "7585d6a4dc81f2702a15e07fd3f26c6a7f2d0489fb36c5960779ce9a9500ee9d",
+          "hash": "2a238912bddd8e0bf3a70637559c8e79931a693c9a19f73a92e8a2dc0a6a0933"
+        },
+        {
+          "secuencia": 4,
+          "tipo": "PAGO_CONFIRMADO",
+          "contenido": "{\"idPago\":\"e5000000-0000-4000-8000-000000000001\"}",
+          "marcaDeTiempo": "2026-11-13T18:40:12.500Z",
+          "hashPrevio": "2f36880333ca2f67dde4499cd7ce9768da078e38f94d9dc9f24194a341a61b0f",
+          "hash": "32159c80fc6f1d3fd802e66fafe5b06b26179d6cc3b40437137e474233407d85"
+        }
+      ],
+      "esperado": {
+        "integra": false,
+        "primeraAlterada": 4
+      }
+    }
+  ]
+}
