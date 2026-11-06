@@ -1,0 +1,978 @@
+openapi: 3.0.3
+info:
+  title: Fairturn API
+  version: 0.1.0
+  description: |
+    API de Fairturn, tandas verificables.
+
+    **Autenticación:** Keycloak (OAuth 2.0 / OIDC). Enviar el access token en
+    el header `Authorization: Bearer <token>`. Todo requiere token excepto
+    `/actuator/health` y la documentación Swagger.
+
+    **Errores:** formato Problem Details (RFC 9457), que Spring genera con `ProblemDetail`.
+
+    **Por sprint:** cada operación indica en `x-sprint` el sprint en que se
+    implementa. Para la Definition of Done ("el contrato coincide con Swagger"),
+    se comparan las operaciones del sprint actual y anteriores.
+
+    **Propuestas:** las operaciones con `x-propuesta: true` no están en el
+    documento del proyecto y deben confirmarse con el equipo.
+servers:
+  - url: http://localhost:8080
+    description: Desarrollo local
+  - url: http://10.0.2.2:8080
+    description: Desde el emulador de Android
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Salud
+  - name: Tandas
+    description: Spec 002
+  - name: Sorteo
+    description: Spec 003
+  - name: Pagos
+    description: Spec 004
+  - name: Bitácora
+    description: Spec 004
+  - name: Disputas
+    description: Spec 005
+  - name: Historial
+    description: Spec 005
+  - name: Administración
+    description: Spec 005
+
+paths:
+  # ---------------------------------------------------------------- Salud
+  /actuator/health:
+    get:
+      tags: [Salud]
+      summary: Estado del servicio
+      operationId: health
+      x-sprint: 1
+      security: []
+      responses:
+        '200':
+          description: El servicio está arriba
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+
+  # ---------------------------------------------------------------- Tandas
+  /api/tandas:
+    post:
+      tags: [Tandas]
+      summary: Crear una tanda con sus reglas pactadas
+      description: 'Rol: ORGANIZADOR. La tanda queda en BORRADOR.'
+      operationId: crearTanda
+      x-sprint: 2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CrearTandaRequest' }
+      responses:
+        '201':
+          description: Tanda creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TandaDetalle' }
+        '400': { $ref: '#/components/responses/DatosInvalidos' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+
+  /api/tandas/mias:
+    get:
+      tags: [Tandas]
+      summary: Tandas del usuario autenticado
+      description: |
+        Tandas de las que el usuario es miembro u organizador.
+        Roles: PARTICIPANTE, ORGANIZADOR. En el Sprint 1 puede devolver una lista vacía.
+      operationId: listarMisTandas
+      x-sprint: 1
+      responses:
+        '200':
+          description: Lista de tandas (puede estar vacía)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/TandaResumen' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+
+  /api/tandas/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdTanda'
+    get:
+      tags: [Tandas]
+      summary: Detalle de una tanda
+      description: 'Solo miembros y dueño.'
+      operationId: obtenerTanda
+      x-sprint: 2
+      responses:
+        '200':
+          description: Detalle
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TandaDetalle' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+
+  /api/tandas/{id}/invitaciones:
+    parameters:
+      - $ref: '#/components/parameters/IdTanda'
+    post:
+      tags: [Tandas]
+      summary: Generar un código de invitación
+      description: 'ORGANIZADOR dueño. La primera vez, la tanda pasa de BORRADOR a RECLUTANDO. Invalida el código anterior.'
+      operationId: generarInvitacion
+      x-sprint: 2
+      responses:
+        '201':
+          description: Código generado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Invitacion' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+        '409': { $ref: '#/components/responses/Conflicto' }
+
+  /api/tandas/unirse:
+    post:
+      tags: [Tandas]
+      summary: Unirse a una tanda con un código
+      description: 'Rol: PARTICIPANTE.'
+      operationId: unirseATanda
+      x-sprint: 2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UnirseRequest' }
+      responses:
+        '200':
+          description: El usuario quedó inscrito
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TandaDetalle' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+        '409': { $ref: '#/components/responses/Conflicto' }
+
+  /api/tandas/{id}/cancelar:
+    parameters:
+      - $ref: '#/components/parameters/IdTanda'
+    post:
+      tags: [Tandas]
+      summary: Cancelar una tanda
+      description: 'ORGANIZADOR dueño. Solo desde BORRADOR, RECLUTANDO o SORTEO.'
+      operationId: cancelarTanda
+      x-sprint: 2
+      x-propuesta: true
+      responses:
+        '200':
+          description: Tanda cancelada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TandaDetalle' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+        '409': { $ref: '#/components/responses/Conflicto' }
+
+  # ---------------------------------------------------------------- Sorteo
+  /api/tandas/{id}/iniciar-sorteo:
+    parameters:
+      - $ref: '#/components/parameters/IdTanda'
+    post:
+      tags: [Sorteo]
+      summary: Cerrar inscripciones y abrir la fase de compromisos
+      description: 'ORGANIZADOR dueño. Requiere tanda en RECLUTANDO con cupo completo.'
+      operationId: iniciarSorteo
+      x-sprint: 3
+      responses:
+        '200':
+          description: Sorteo iniciado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EstadoSorteo' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+        '409': { $ref: '#/components/responses/Conflicto' }
+
+  /api/tandas/{id}/sorteo/compromiso:
+    parameters:
+      - $ref: '#/components/parameters/IdTanda'
+    post:
+      tags: [Sorteo]
+      summary: Publicar el compromiso (hash del secreto)
+      description: 'Miembros de la tanda. Solo en fase COMPROMISO, una vez.'
+      operationId: publicarCompromiso
+      x-sprint: 3
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompromisoRequest' }
+      responses:
+        '200':
+          description: Compromiso aceptado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EstadoSorteo' }
+        '400': { $ref: '#/components/responses/DatosInvalidos' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+        '409': { $ref: '#/components/responses/Conflicto' }
+
+  /api/tandas/{id}/sorteo/revelacion:
+    parameters:
+      - $ref: '#/components/parameters/IdTanda'
+    post:
+      tags: [Sorteo]
+      summary: Revelar el secreto
+      description: 'Miembros de la tanda. Solo en fase REVELACION, una vez.'
+      operationId: revelarSecreto
+      x-sprint: 3
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RevelacionRequest' }
+      responses:
+        '200':
+          description: Revelación aceptada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EstadoSorteo' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+        '409': { $ref: '#/components/responses/Conflicto' }
+        '422': { $ref: '#/components/responses/NoProcesable' }
+
+  /api/tandas/{id}/sorteo/verificacion:
+    parameters:
+      - $ref: '#/components/parameters/IdTanda'
+    get:
+      tags: [Sorteo]
+      summary: Datos públicos para recalcular el sorteo
+      description: 'Miembros de la tanda.'
+      operationId: obtenerVerificacionSorteo
+      x-sprint: 3
+      responses:
+        '200':
+          description: Datos del sorteo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VerificacionSorteo' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+
+  # ---------------------------------------------------------------- Pagos
+  /api/tandas/{id}/rondas:
+    parameters:
+      - $ref: '#/components/parameters/IdTanda'
+    get:
+      tags: [Pagos]
+      summary: Rondas, receptores y fechas
+      description: 'Miembros de la tanda.'
+      operationId: listarRondas
+      x-sprint: 4
+      responses:
+        '200':
+          description: Rondas
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Ronda' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+
+  /api/rondas/{id}/pagos:
+    parameters:
+      - $ref: '#/components/parameters/IdRonda'
+    get:
+      tags: [Pagos]
+      summary: Pagos de una ronda
+      description: 'Miembros de la tanda.'
+      operationId: listarPagosDeRonda
+      x-sprint: 4
+      x-propuesta: true
+      responses:
+        '200':
+          description: Pagos
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Pago' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+    post:
+      tags: [Pagos]
+      summary: Declarar mi pago de la ronda
+      description: 'Miembro que no es el receptor de la ronda.'
+      operationId: declararPago
+      x-sprint: 4
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeclararPagoRequest' }
+      responses:
+        '201':
+          description: Pago declarado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pago' }
+        '400': { $ref: '#/components/responses/DatosInvalidos' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+        '409': { $ref: '#/components/responses/Conflicto' }
+
+  /api/pagos/{id}/confirmar:
+    parameters:
+      - $ref: '#/components/parameters/IdPago'
+    patch:
+      tags: [Pagos]
+      summary: Confirmar un pago recibido
+      description: 'Solo el receptor de la ronda, con el pago en DECLARADO.'
+      operationId: confirmarPago
+      x-sprint: 4
+      responses:
+        '200':
+          description: Pago confirmado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pago' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+        '409': { $ref: '#/components/responses/Conflicto' }
+
+  # ---------------------------------------------------------------- Bitácora
+  /api/tandas/{id}/bitacora:
+    parameters:
+      - $ref: '#/components/parameters/IdTanda'
+    get:
+      tags: [Bitácora]
+      summary: Bitácora de la tanda
+      description: 'Miembros de la tanda. Ordenada por secuencia.'
+      operationId: obtenerBitacora
+      x-sprint: 4
+      responses:
+        '200':
+          description: Entradas
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/EntradaBitacora' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+
+  /api/tandas/{id}/bitacora/verificar:
+    parameters:
+      - $ref: '#/components/parameters/IdTanda'
+    get:
+      tags: [Bitácora]
+      summary: Verificar la integridad de la cadena
+      description: 'Miembros de la tanda.'
+      operationId: verificarBitacora
+      x-sprint: 4
+      responses:
+        '200':
+          description: Resultado de la verificación
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VerificacionBitacora' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+
+  # ---------------------------------------------------------------- Disputas
+  /api/pagos/{id}/disputa:
+    parameters:
+      - $ref: '#/components/parameters/IdPago'
+    post:
+      tags: [Disputas]
+      summary: Abrir una disputa sobre un pago
+      description: 'Pagador o receptor. Pago DECLARADO, o PENDIENTE con mora.'
+      operationId: abrirDisputa
+      x-sprint: 5
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AbrirDisputaRequest' }
+      responses:
+        '201':
+          description: Disputa abierta
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Disputa' }
+        '400': { $ref: '#/components/responses/DatosInvalidos' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+        '409': { $ref: '#/components/responses/Conflicto' }
+
+  /api/disputas:
+    get:
+      tags: [Disputas]
+      summary: Disputas asignadas al árbitro autenticado
+      description: 'Rol: ARBITRO.'
+      operationId: listarMisDisputas
+      x-sprint: 5
+      responses:
+        '200':
+          description: Disputas
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Disputa' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+
+  /api/disputas/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdDisputa'
+    get:
+      tags: [Disputas]
+      summary: Detalle de una disputa con su evidencia
+      description: 'ARBITRO asignado.'
+      operationId: obtenerDisputa
+      x-sprint: 5
+      x-propuesta: true
+      responses:
+        '200':
+          description: Disputa y evidencia
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DisputaDetalle' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+
+  /api/disputas/{id}/resolver:
+    parameters:
+      - $ref: '#/components/parameters/IdDisputa'
+    patch:
+      tags: [Disputas]
+      summary: Resolver una disputa con su motivo
+      description: 'ARBITRO asignado. Disputa en EN_REVISION.'
+      operationId: resolverDisputa
+      x-sprint: 5
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResolverDisputaRequest' }
+      responses:
+        '200':
+          description: Disputa resuelta
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Disputa' }
+        '400': { $ref: '#/components/responses/DatosInvalidos' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+        '409': { $ref: '#/components/responses/Conflicto' }
+
+  # ---------------------------------------------------------------- Historial
+  /api/usuarios/{id}/historial:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: '`sub` del usuario.'
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Historial]
+      summary: Historial de cumplimiento
+      description: 'El propio usuario o alguien que comparte al menos una tanda con él.'
+      operationId: consultarHistorial
+      x-sprint: 5
+      responses:
+        '200':
+          description: Historial
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Historial' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+
+  # ---------------------------------------------------------------- Administración
+  /api/admin/usuarios:
+    get:
+      tags: [Administración]
+      summary: Buscar usuarios
+      description: 'Rol: ADMIN.'
+      operationId: buscarUsuarios
+      x-sprint: 5
+      x-propuesta: true
+      parameters:
+        - name: busqueda
+          in: query
+          required: false
+          description: Parte del usuario o del nombre.
+          schema: { type: string }
+      responses:
+        '200':
+          description: Usuarios
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Usuario' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+
+  /api/admin/usuarios/{id}/rol:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: '`sub` del usuario.'
+        schema: { type: string, format: uuid }
+    patch:
+      tags: [Administración]
+      summary: Habilitar organizador o asignar el rol de árbitro
+      description: 'Rol: ADMIN.'
+      operationId: cambiarRol
+      x-sprint: 5
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CambiarRolRequest' }
+      responses:
+        '200':
+          description: Rol actualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Usuario' }
+        '400': { $ref: '#/components/responses/DatosInvalidos' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+
+  /api/admin/disputas/{id}/arbitro:
+    parameters:
+      - $ref: '#/components/parameters/IdDisputa'
+    patch:
+      tags: [Administración]
+      summary: Asignar a mano un árbitro a una disputa
+      description: 'Rol: ADMIN. Rechaza con 409 si el árbitro es miembro de la tanda.'
+      operationId: asignarArbitro
+      x-sprint: 5
+      x-propuesta: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AsignarArbitroRequest' }
+      responses:
+        '200':
+          description: Árbitro asignado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Disputa' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+        '409': { $ref: '#/components/responses/Conflicto' }
+
+  /api/indicadores/tandas:
+    get:
+      tags: [Administración]
+      summary: Número de tandas por estado
+      description: 'Rol: ADMIN.'
+      operationId: indicadoresTandas
+      x-sprint: 5
+      responses:
+        '200':
+          description: Conteo por estado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConteoPorEstado' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+
+  /api/indicadores/disputas:
+    get:
+      tags: [Administración]
+      summary: Número de disputas por estado
+      description: 'Rol: ADMIN.'
+      operationId: indicadoresDisputas
+      x-sprint: 5
+      responses:
+        '200':
+          description: Conteo por estado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConteoPorEstado' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token emitido por Keycloak (realm `fairturn`).
+
+  parameters:
+    IdTanda:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    IdRonda:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    IdPago:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    IdDisputa:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    DatosInvalidos:
+      description: El cuerpo o los parámetros no cumplen las validaciones
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problema' }
+    NoAutenticado:
+      description: Falta el token, está mal formado, vencido o con firma inválida
+    SinPermiso:
+      description: El token es válido pero el usuario no tiene el rol o la relación con el recurso
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problema' }
+    NoEncontrado:
+      description: El recurso no existe (o el código de invitación venció)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problema' }
+    Conflicto:
+      description: La operación no está permitida en el estado actual del recurso
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problema' }
+    NoProcesable:
+      description: Los datos son válidos en forma pero no cumplen una regla (p. ej. la revelación no coincide)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problema' }
+
+  schemas:
+    Health:
+      type: object
+      properties:
+        status: { type: string, example: UP }
+
+    Problema:
+      type: object
+      description: Problem Details (RFC 9457)
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string, example: Conflict }
+        status: { type: integer, example: 409 }
+        detail: { type: string, example: La tanda no está en RECLUTANDO }
+        instance: { type: string }
+
+    Usuario:
+      type: object
+      required: [id, username]
+      properties:
+        id: { type: string, format: uuid, description: '`sub` de Keycloak' }
+        username: { type: string, example: participante1 }
+        nombre: { type: string, example: Ana López }
+        roles:
+          type: array
+          items: { $ref: '#/components/schemas/Rol' }
+
+    Rol:
+      type: string
+      enum: [PARTICIPANTE, ORGANIZADOR, ARBITRO, ADMIN]
+
+    # ---- Tandas
+    EstadoTanda:
+      type: string
+      enum: [BORRADOR, RECLUTANDO, SORTEO, ACTIVA, FINALIZADA, CANCELADA]
+
+    Periodicidad:
+      type: string
+      enum: [SEMANAL, QUINCENAL, MENSUAL]
+
+    CrearTandaRequest:
+      type: object
+      required: [nombre, monto, periodicidad, numeroParticipantes, plazoGraciaDias, organizadorParticipa]
+      properties:
+        nombre: { type: string, minLength: 3, maxLength: 60, example: Tanda de la oficina }
+        monto: { type: number, format: decimal, minimum: 0.01, multipleOf: 0.01, example: 500.00, description: Aportación de cada miembro por ronda (MXN) }
+        periodicidad: { $ref: '#/components/schemas/Periodicidad' }
+        numeroParticipantes: { type: integer, minimum: 2, maximum: 20, example: 4 }
+        plazoGraciaDias: { type: integer, minimum: 0, maximum: 7, example: 2 }
+        organizadorParticipa: { type: boolean, example: false }
+
+    TandaResumen:
+      type: object
+      required: [id, nombre, estado, creadoEn]
+      properties:
+        id: { type: string, format: uuid }
+        nombre: { type: string, example: Tanda de la oficina }
+        estado: { $ref: '#/components/schemas/EstadoTanda' }
+        soyOrganizador: { type: boolean }
+        miembros: { type: integer, example: 3 }
+        numeroParticipantes: { type: integer, example: 4 }
+        creadoEn: { type: string, format: date-time }
+
+    TandaDetalle:
+      allOf:
+        - $ref: '#/components/schemas/TandaResumen'
+        - type: object
+          properties:
+            organizador: { $ref: '#/components/schemas/Usuario' }
+            monto: { type: number, format: decimal, example: 500.00 }
+            periodicidad: { $ref: '#/components/schemas/Periodicidad' }
+            plazoGraciaDias: { type: integer }
+            montoPorRonda: { type: number, format: decimal, example: 1500.00, description: 'monto × (numeroParticipantes − 1)' }
+            listaMiembros:
+              type: array
+              items: { $ref: '#/components/schemas/Usuario' }
+
+    Invitacion:
+      type: object
+      required: [codigo, venceEn]
+      properties:
+        codigo: { type: string, pattern: '^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{8}$', example: K7MPQ2XA }
+        venceEn: { type: string, format: date-time }
+
+    UnirseRequest:
+      type: object
+      required: [codigo]
+      properties:
+        codigo: { type: string, example: K7MPQ2XA }
+
+    # ---- Sorteo
+    FaseSorteo:
+      type: string
+      enum: [COMPROMISO, REVELACION, CALCULADO, REINICIADO]
+
+    EstadoSorteo:
+      type: object
+      properties:
+        fase: { $ref: '#/components/schemas/FaseSorteo' }
+        intento: { type: integer, example: 1 }
+        plazoFase: { type: string, format: date-time }
+        comprometidos: { type: integer, example: 3 }
+        revelados: { type: integer, example: 0 }
+        totalMiembros: { type: integer, example: 4 }
+
+    Hash:
+      type: string
+      pattern: '^[0-9a-f]{64}$'
+      example: fde28ee36f5fd364ab7ca674bd06c8a43126a5632fe9e7f0f7ccbcea5ca7f03e
+
+    CompromisoRequest:
+      type: object
+      required: [compromiso]
+      properties:
+        compromiso: { $ref: '#/components/schemas/Hash' }
+
+    RevelacionRequest:
+      type: object
+      required: [secreto]
+      properties:
+        secreto: { type: string, minLength: 1, maxLength: 256, description: 'Texto UTF-8 sin el carácter |' }
+
+    VerificacionSorteo:
+      type: object
+      required: [idTanda, fase, participantes]
+      properties:
+        idTanda: { type: string, format: uuid }
+        fase: { $ref: '#/components/schemas/FaseSorteo' }
+        participantes:
+          type: array
+          description: Ordenados por idParticipante
+          items:
+            type: object
+            required: [idParticipante]
+            properties:
+              idParticipante: { type: string, format: uuid }
+              compromiso:
+                allOf: [{ $ref: '#/components/schemas/Hash' }]
+                nullable: true
+              secreto: { type: string, nullable: true, description: 'Solo después de la fase de revelación' }
+        semilla:
+          allOf: [{ $ref: '#/components/schemas/Hash' }]
+          nullable: true
+        orden:
+          type: array
+          description: idParticipante en orden de turno; vacío hasta que se calcula
+          items: { type: string, format: uuid }
+
+    # ---- Pagos
+    EstadoRonda:
+      type: string
+      enum: [PROGRAMADA, EN_CURSO, CERRADA]
+
+    Ronda:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        numero: { type: integer, example: 1 }
+        receptor: { $ref: '#/components/schemas/Usuario' }
+        fechaInicio: { type: string, format: date-time }
+        fechaVencimiento: { type: string, format: date-time }
+        fechaLimiteGracia: { type: string, format: date-time }
+        estado: { $ref: '#/components/schemas/EstadoRonda' }
+
+    EstadoPago:
+      type: string
+      enum: [PENDIENTE, DECLARADO, CONFIRMADO, EN_DISPUTA, NO_VALIDADO]
+
+    DeclararPagoRequest:
+      type: object
+      required: [referencia]
+      properties:
+        referencia: { type: string, minLength: 3, maxLength: 140, example: 'Transferencia 09:15' }
+
+    Pago:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        rondaId: { type: string, format: uuid }
+        pagador: { $ref: '#/components/schemas/Usuario' }
+        monto: { type: number, format: decimal, example: 500.00 }
+        referencia: { type: string, nullable: true }
+        estado: { $ref: '#/components/schemas/EstadoPago' }
+        moraRegistrada: { type: boolean }
+        puntual: { type: boolean, nullable: true, description: 'null mientras no se declare' }
+        declaradoEn: { type: string, format: date-time, nullable: true }
+        confirmadoEn: { type: string, format: date-time, nullable: true }
+
+    # ---- Bitácora
+    TipoEntrada:
+      type: string
+      enum: [TANDA_CREADA, MIEMBRO_UNIDO, TANDA_CANCELADA, SORTEO_INICIADO, COMPROMISO_PUBLICADO,
+             SECRETO_REVELADO, NO_REVELO, SORTEO_REINICIADO, SORTEO_EJECUTADO, PAGO_DECLARADO,
+             PAGO_CONFIRMADO, MORA_REGISTRADA, DISPUTA_ABIERTA, DISPUTA_RESUELTA, TANDA_FINALIZADA]
+
+    EntradaBitacora:
+      type: object
+      required: [secuencia, tipo, contenido, marcaDeTiempo, hashPrevio, hash]
+      properties:
+        secuencia: { type: integer, minimum: 1, example: 7 }
+        tipo: { $ref: '#/components/schemas/TipoEntrada' }
+        contenido: { type: string, description: 'JSON guardado como texto; se usa tal cual para el hash' }
+        marcaDeTiempo: { type: string, pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$', example: '2026-11-06T22:15:30.123Z' }
+        hashPrevio: { $ref: '#/components/schemas/Hash' }
+        hash: { $ref: '#/components/schemas/Hash' }
+
+    VerificacionBitacora:
+      type: object
+      required: [integra, totalEntradas]
+      properties:
+        integra: { type: boolean }
+        totalEntradas: { type: integer, example: 7 }
+        primeraAlterada: { type: integer, nullable: true, description: 'Secuencia de la primera entrada donde se rompe la cadena' }
+        ultimoHash:
+          allOf: [{ $ref: '#/components/schemas/Hash' }]
+          nullable: true
+
+    # ---- Disputas
+    EstadoDisputa:
+      type: string
+      enum: [ABIERTA, EN_REVISION, RESUELTA]
+
+    DecisionDisputa:
+      type: string
+      enum: [PAGO_VALIDO, PAGO_NO_VALIDO]
+
+    AbrirDisputaRequest:
+      type: object
+      required: [motivo]
+      properties:
+        motivo: { type: string, minLength: 10, maxLength: 500 }
+
+    Disputa:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        pagoId: { type: string, format: uuid }
+        tandaId: { type: string, format: uuid }
+        abiertaPor: { $ref: '#/components/schemas/Usuario' }
+        motivo: { type: string }
+        arbitro:
+          allOf: [{ $ref: '#/components/schemas/Usuario' }]
+          nullable: true
+        estado: { $ref: '#/components/schemas/EstadoDisputa' }
+        decision:
+          allOf: [{ $ref: '#/components/schemas/DecisionDisputa' }]
+          nullable: true
+        motivoResolucion: { type: string, nullable: true }
+        abiertaEn: { type: string, format: date-time }
+        resueltaEn: { type: string, format: date-time, nullable: true }
+
+    DisputaDetalle:
+      allOf:
+        - $ref: '#/components/schemas/Disputa'
+        - type: object
+          properties:
+            pago: { $ref: '#/components/schemas/Pago' }
+            evidencia:
+              type: array
+              description: Entradas de la bitácora relacionadas con el pago
+              items: { $ref: '#/components/schemas/EntradaBitacora' }
+
+    ResolverDisputaRequest:
+      type: object
+      required: [decision, motivo]
+      properties:
+        decision: { $ref: '#/components/schemas/DecisionDisputa' }
+        motivo: { type: string, minLength: 10, maxLength: 500 }
+
+    # ---- Historial y administración
+    Historial:
+      type: object
+      properties:
+        usuario: { $ref: '#/components/schemas/Usuario' }
+        pagosTotales: { type: integer, example: 12 }
+        pagosPuntuales: { type: integer, example: 11 }
+        porcentajePuntual: { type: number, nullable: true, example: 91.7 }
+        moras: { type: integer, example: 1 }
+        tandasCompletadas: { type: integer, example: 2 }
+        disputasPerdidas: { type: integer, example: 0 }
+        noRevelaciones: { type: integer, example: 0 }
+
+    CambiarRolRequest:
+      type: object
+      required: [rol, accion]
+      properties:
+        rol:
+          type: string
+          enum: [ORGANIZADOR, ARBITRO]
+        accion:
+          type: string
+          enum: [AGREGAR, QUITAR]
+
+    AsignarArbitroRequest:
+      type: object
+      required: [arbitroId]
+      properties:
+        arbitroId: { type: string, format: uuid }
+
+    ConteoPorEstado:
+      type: object
+      additionalProperties: { type: integer }
+      example: { RECLUTANDO: 2, ACTIVA: 5, FINALIZADA: 3 }
