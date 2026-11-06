@@ -2,10 +2,10 @@
 
 Backend de **Fairturn**, una app para organizar tandas **sin depender de la palabra de una sola persona**:
 
-- 🎲 **El sorteo lo puede comprobar cualquiera.** Compromiso y revelación: cada miembro recalcula el orden en su celular.
-- 💸 **El organizador nunca tiene el dinero.** Se paga directo a quien cobra; quien paga declara y quien recibe confirma.
-- 🔗 **El registro no se reescribe sin que se note.** Bitácora encadenada con hashes.
-- ⚖️ **Un árbitro neutral** resuelve las disputas con la evidencia registrada.
+- **El sorteo lo puede comprobar cualquiera.** Compromiso y revelación: cada miembro recalcula el orden en su celular.
+- **El organizador nunca tiene el dinero.** Se paga directo a quien cobra; quien paga declara y quien recibe confirma.
+- **El registro no se reescribe sin que se note.** Bitácora encadenada con hashes.
+- **Un árbitro neutral** resuelve las disputas con la evidencia registrada.
 
 > Fairturn no custodia ni mueve dinero. Registra, verifica y hace visible lo que ocurre.
 
